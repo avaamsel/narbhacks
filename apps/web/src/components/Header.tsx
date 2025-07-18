@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/clerk-react";
-import { SignOutButton } from "@clerk/nextjs";
+import { SignOutButton, SignInButton, SignUpButton } from "@clerk/nextjs";
 import {
   Disclosure,
   DisclosureButton,
@@ -21,10 +21,14 @@ type NavigationItem = {
 
 const navigation: NavigationItem[] = [
   { name: "Map", href: "/", current: true },
-  { name: "My Stats", href: "/stats", current: false },
+  { name: "My Account", href: "#", current: false },
 ];
 
-export default function Header() {
+interface HeaderProps {
+  onStatsClick?: () => void;
+}
+
+export default function Header({ onStatsClick }: HeaderProps) {
   const { user } = useUser();
   const pathname = usePathname();
 
@@ -46,13 +50,35 @@ export default function Header() {
                     <ul className="flex space-x-8">
                       {navigation.map((item) => (
                         <li key={item.name}>
-                          <Link
-                            href={item.href}
-                            className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]"
-                            aria-current={item.current ? "page" : undefined}
-                          >
-                            {item.name}
-                          </Link>
+                          {item.name === "My Account" ? (
+                            user ? (
+                              <Link
+                                href="/stats"
+                                className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
+                              >
+                                {item.name}
+                              </Link>
+                            ) : (
+                              onStatsClick ? (
+                                <button
+                                  onClick={onStatsClick}
+                                  className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
+                                >
+                                  {item.name}
+                                </button>
+                              ) : (
+                                <span className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]">{item.name}</span>
+                              )
+                            )
+                          ) : (
+                            <Link
+                              href={item.href}
+                              className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]"
+                              aria-current={item.current ? "page" : undefined}
+                            >
+                              {item.name}
+                            </Link>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -78,18 +104,16 @@ export default function Header() {
                   </div>
                 ) : (
                   <div className="hidden sm:flex absolute inset-y-0 right-0 gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                    <Link
-                      href="/"
-                      className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition text-xl not-italic font-montserrat"
-                    >
-                      Sign in
-                    </Link>
-                    <Link
-                      href="/"
-                      className="px-6 py-2 bg-[#f5a623] text-white rounded font-semibold hover:bg-[#e94e77] transition text-xl not-italic font-montserrat"
-                    >
-                      Get Started
-                    </Link>
+                    <SignInButton mode="modal">
+                      <button className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition text-xl not-italic font-montserrat">
+                        Sign in
+                      </button>
+                    </SignInButton>
+                    <SignUpButton mode="modal">
+                      <button className="px-6 py-2 bg-[#f5a623] text-white rounded font-semibold hover:bg-[#e94e77] transition text-xl not-italic font-montserrat">
+                        Get Started
+                      </button>
+                    </SignUpButton>
                   </div>
                 )}
               </div>
@@ -99,29 +123,59 @@ export default function Header() {
           <DisclosurePanel className="sm:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2 flex flex-col gap-3 items-start">
               {navigation.map((item) => (
-                <DisclosureButton
-                  key={item.name}
-                  as={Link}
-                  href={item.href}
-                  className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
-                  aria-current={item.current ? "page" : undefined}
-                >
-                  {item.name}
-                </DisclosureButton>
+                item.name === "My Account" ? (
+                  user ? (
+                    <DisclosureButton
+                      key={item.name}
+                      as={Link}
+                      href="/stats"
+                      className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
+                    >
+                      {item.name}
+                    </DisclosureButton>
+                  ) : (
+                    onStatsClick ? (
+                      <DisclosureButton
+                        key={item.name}
+                        as="button"
+                        onClick={onStatsClick}
+                        className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
+                      >
+                        {item.name}
+                      </DisclosureButton>
+                    ) : (
+                      <DisclosureButton
+                        key={item.name}
+                        as="span"
+                        className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
+                      >
+                        {item.name}
+                      </DisclosureButton>
+                    )
+                  )
+                ) : (
+                  <DisclosureButton
+                    key={item.name}
+                    as={Link}
+                    href={item.href}
+                    className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
+                    aria-current={item.current ? "page" : undefined}
+                  >
+                    {item.name}
+                  </DisclosureButton>
+                )
               ))}
-              <div className="flex gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                <Link
-                  href="/"
-                  className="border rounded-lg border-solid border-[#2D2D2D] text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-[5px]"
-                >
-                  Sign in
-                </Link>
-                <Link
-                  href="/"
-                  className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-1.5 button"
-                >
-                  Get Started
-                </Link>
+              <div className="flex gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 ml-8">
+                <SignInButton mode="modal">
+                  <button className="border rounded-lg border-solid border-[#2D2D2D] text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-[5px]">
+                    Sign in
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button className="text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-1.5 button">
+                    Get Started
+                  </button>
+                </SignUpButton>
               </div>
             </div>
           </DisclosurePanel>
