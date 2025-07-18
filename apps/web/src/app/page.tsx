@@ -5,7 +5,9 @@ import { api } from "../../../../packages/backend/convex/_generated/api";
 import { useQuery } from "convex/react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import L from "leaflet";
+import { useRef } from "react";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then(mod => mod.MapContainer),
@@ -23,19 +25,59 @@ const Popup = dynamic(
   () => import("react-leaflet").then(mod => mod.Popup),
   { ssr: false }
 );
+const Polyline = dynamic(
+  () => import("react-leaflet").then(mod => mod.Polyline),
+  { ssr: false }
+);
 
 const DEFAULT_LAT = 34.0522;
 const DEFAULT_LNG = -118.2437;
 
-// Custom SVG icons as data URLs
-const icons = {
-  coffee: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='16' rx='14' ry='14' fill='%23fff'/><ellipse cx='16' cy='16' rx='10' ry='7' fill='%23b5651d'/><ellipse cx='16' cy='16' rx='7' ry='4' fill='%23fff'/><ellipse cx='16' cy='16' rx='4' ry='2' fill='%23b5651d'/></svg>`,
-  bookstore: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><rect x='6' y='8' width='20' height='16' rx='2' fill='%234a90e2'/><rect x='10' y='12' width='12' height='8' rx='1' fill='%23fff'/></svg>`,
-  food: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='20' rx='10' ry='6' fill='%23f5a623'/><ellipse cx='16' cy='20' rx='6' ry='3' fill='%23fff'/><ellipse cx='16' cy='20' rx='3' ry='1.5' fill='%23f5a623'/></svg>`,
-  market: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='16' rx='14' ry='10' fill='%234caf50'/><ellipse cx='16' cy='16' rx='8' ry='4' fill='%23fff'/></svg>`
-};
+// Haversine formula for distance in km
+function getDistance(lat1, lng1, lat2, lng2) {
+  const toRad = (v) => (v * Math.PI) / 180;
+  const R = 6371; // Earth radius in km
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-// Sample business data with types
+// Simple TSP nearest neighbor for shortest route
+function getShortestRoute(start, businesses) {
+  const remaining = [...businesses];
+  const route = [];
+  let current = start;
+  while (remaining.length) {
+    let minIdx = 0;
+    let minDist = getDistance(current.lat, current.lng, remaining[0].lat, remaining[0].lng);
+    for (let i = 1; i < remaining.length; i++) {
+      const d = getDistance(current.lat, current.lng, remaining[i].lat, remaining[i].lng);
+      if (d < minDist) {
+        minDist = d;
+        minIdx = i;
+      }
+    }
+    route.push(remaining[minIdx]);
+    current = remaining[minIdx];
+    remaining.splice(minIdx, 1);
+  }
+  return route;
+}
+
+// Random route generator
+function getRandomRoute(start, businesses) {
+  const shuffled = [...businesses].sort(() => Math.random() - 0.5);
+  return shuffled;
+}
+
+// Sample business data with types and images
 const businesses = [
   {
     name: "Sunset Coffee",
@@ -43,6 +85,8 @@ const businesses = [
     lng: -118.245,
     description: "Cozy local coffee shop with the best cold brew in LA!",
     type: "coffee",
+    typeLabel: "Coffee Shop",
+    image: "/images/coffee.jpg",
   },
   {
     name: "Book Nook",
@@ -50,6 +94,8 @@ const businesses = [
     lng: -118.242,
     description: "Independent bookstore with a great community vibe.",
     type: "bookstore",
+    typeLabel: "Bookstore",
+    image: "/images/bookstore.jpg",
   },
   {
     name: "Taco Haven",
@@ -57,6 +103,8 @@ const businesses = [
     lng: -118.244,
     description: "Family-run taqueria serving authentic street tacos.",
     type: "food",
+    typeLabel: "Taqueria",
+    image: "/images/taco.jpg",
   },
   {
     name: "Green Leaf Market",
@@ -64,23 +112,87 @@ const businesses = [
     lng: -118.241,
     description: "Fresh produce and local goods every day!",
     type: "market",
+    typeLabel: "Market",
+    image: "/images/market.jpg",
   },
 ];
+
+// Helper to sum route distance
+function getRouteDistance(start, route) {
+  let total = 0;
+  let prev = start;
+  for (const biz of route) {
+    total += getDistance(prev.lat, prev.lng, biz.lat, biz.lng);
+    prev = biz;
+  }
+  return total;
+}
 
 export default function LocationDashboard() {
   const location = useQuery(api.locations.getLocation, {});
   const hasLocation = location && location.latitude && location.longitude;
   const center = hasLocation
-    ? [location.latitude, location.longitude]
-    : [DEFAULT_LAT, DEFAULT_LNG];
+    ? { lat: location.latitude, lng: location.longitude }
+    : { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
 
   // Local check-in state
   const [checkedIn, setCheckedIn] = useState<{ [name: string]: boolean }>({});
+  const [selectedRoute, setSelectedRoute] = useState("shortest");
+  const [activeBusiness, setActiveBusiness] = useState(null);
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [committedRoute, setCommittedRoute] = useState<string>("shortest");
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [travelMode, setTravelMode] = useState<string | null>(null);
+  const [showModeModal, setShowModeModal] = useState(true);
+
+  // Custom SVG icons as data URLs (move inside component)
+  const icons = {
+    coffee: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='16' rx='14' ry='14' fill='%23fff'/><ellipse cx='16' cy='16' rx='10' ry='7' fill='%23b5651d'/><ellipse cx='16' cy='16' rx='7' ry='4' fill='%23fff'/><ellipse cx='16' cy='16' rx='4' ry='2' fill='%23b5651d'/></svg>`,
+    bookstore: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><rect x='6' y='8' width='20' height='16' rx='2' fill='%234a90e2'/><rect x='10' y='12' width='12' height='8' rx='1' fill='%23fff'/></svg>`,
+    food: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='20' rx='10' ry='6' fill='%23f5a623'/><ellipse cx='16' cy='20' rx='6' ry='3' fill='%23fff'/><ellipse cx='16' cy='20' rx='3' ry='1.5' fill='%23f5a623'/></svg>`,
+    market: `data:image/svg+xml;utf8,<svg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'><ellipse cx='16' cy='16' rx='14' ry='10' fill='%234caf50'/><ellipse cx='16' cy='16' rx='8' ry='4' fill='%23fff'/></svg>`
+  };
+
+  // Calculate points for each business
+  const businessWithPoints = useMemo(() => {
+    const startLat = hasLocation ? location.latitude : DEFAULT_LAT;
+    const startLng = hasLocation ? location.longitude : DEFAULT_LNG;
+    return businesses.map((biz) => {
+      const dist = getDistance(startLat, startLng, biz.lat, biz.lng);
+      const points = Math.max(10, Math.round(dist * 5));
+      return { ...biz, points };
+    });
+  }, [location, hasLocation]);
+
+  // Total points for checked-in businesses
+  const totalPoints = businessWithPoints.reduce(
+    (sum, biz) => sum + (checkedIn[biz.name] ? biz.points : 0),
+    0
+  );
+
+  // Route options
+  const routeOptions = useMemo(() => {
+    const start = center;
+    const shortest = getShortestRoute(start, businessWithPoints);
+    const tricky1 = getRandomRoute(start, businessWithPoints);
+    const tricky2 = getRandomRoute(start, businessWithPoints);
+    return [
+      { key: "shortest", name: "Shortest Route", color: "#4a90e2", route: shortest, bonus: 0 },
+      { key: "tricky1", name: "Tricky Route 1", color: "#f5a623", route: tricky1, bonus: 50 },
+      { key: "tricky2", name: "Tricky Route 2", color: "#e94e77", route: tricky2, bonus: 50 },
+    ];
+  }, [center.lat, center.lng, businessWithPoints]);
+
+  const activeRoute = routeOptions.find((r) => r.key === selectedRoute) || routeOptions[0];
+
+  // Route completion check
+  const routeCompleted = activeRoute.route.every((biz) => checkedIn[biz.name]);
+  const totalWithBonus = totalPoints + (routeCompleted && activeRoute.bonus ? activeRoute.bonus : 0);
 
   // Custom icon for business type
-  const getIcon = (type: string, visited: boolean) => {
+  const getIcon = (type, visited) => {
     return L.icon({
-      iconUrl: icons[type as keyof typeof icons],
+      iconUrl: icons[type],
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32],
@@ -88,15 +200,275 @@ export default function LocationDashboard() {
     });
   };
 
+  // Polyline positions for the selected route
+  const polylinePositions = [
+    [center.lat, center.lng],
+    ...activeRoute.route.map((biz) => [biz.lat, biz.lng]),
+  ];
+
+  const fallbackImage = "/images/pin.svg";
+
+  // Reviews state: { [businessName]: string[] }
+  const [reviews, setReviews] = useState<{ [name: string]: string[] }>({});
+  const [reviewInput, setReviewInput] = useState("");
+  const reviewInputRef = useRef<HTMLInputElement>(null);
+
+  // Show congrats modal when route is completed
+  useEffect(() => {
+    if (routeCompleted && activeRoute.route.length > 0) {
+      setShowCongrats(true);
+    }
+  }, [routeCompleted, activeRoute.route.length]);
+
+  // Only allow switching route via the modal
+  const handleRouteSelect = (key: string) => {
+    setCommittedRoute(key);
+    setSelectedRoute(key);
+    setShowSwitchModal(false);
+  };
+
+  // Show travel mode modal before route selection
+  if (!travelMode && showModeModal) {
+    return (
+      <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
+          <h2 className="text-2xl font-bold mb-4 text-[#4a90e2]">How are you getting around today?</h2>
+          <button
+            className="mb-4 px-6 py-3 bg-[#4a90e2] text-white rounded-full text-lg font-semibold hover:bg-[#357ab8] transition"
+            onClick={() => { setTravelMode("walking"); setShowModeModal(false); }}
+          >
+            🚶 Walking
+          </button>
+          <button
+            className="px-6 py-3 bg-[#f5a623] text-white rounded-full text-lg font-semibold hover:bg-[#e94e77] transition"
+            onClick={() => { setTravelMode("wheels"); setShowModeModal(false); }}
+          >
+            🛴 Wheels (bike, scooter, etc.)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="bg-[#f5f7fa] min-h-screen">
-      <Header />
-      <div className="flex flex-col items-center justify-center h-full py-10">
+    <main className="bg-[#f5f7fa] min-h-screen flex flex-row">
+      {/* Congratulatory Modal */}
+      {showCongrats && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
+            <button
+              className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
+              onClick={() => setShowCongrats(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <div className="text-4xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold mb-2 text-[#4a90e2]">Congratulations!</h2>
+            <div className="mb-2 text-[#3a4a5d] text-center">You completed the <span className="font-semibold">{activeRoute.name}</span>!</div>
+            <div className="mb-2 text-[#3a4a5d] text-center">
+              Total distance: <span className="font-semibold">{getRouteDistance(center, activeRoute.route).toFixed(2)} km</span> / <span className="font-semibold">{(getRouteDistance(center, activeRoute.route) * 0.621371).toFixed(2)} mi</span>
+            </div>
+            <div className="mb-4 text-[#3a4a5d] text-center">
+              Estimated walking time: <span className="font-semibold">{Math.round((getRouteDistance(center, activeRoute.route) / 4.8) * 60)} min</span>
+            </div>
+            <button
+              className="mt-2 px-6 py-2 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition"
+              onClick={() => setShowCongrats(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Modal for business info */}
+      {activeBusiness && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+          {/* Faded/blurred overlay */}
+          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative z-10">
+            <button
+              className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
+              onClick={() => setActiveBusiness(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <img
+              src={activeBusiness.image || fallbackImage}
+              alt={activeBusiness.name}
+              className="w-full h-40 object-cover rounded mb-4"
+              style={{ background: "#f5f7fa" }}
+              onError={e => (e.currentTarget.src = fallbackImage)}
+            />
+            <h2 className="text-2xl font-bold mb-1">{activeBusiness.name}</h2>
+            <div className="mb-2 text-[#4a90e2] font-semibold">{activeBusiness.typeLabel}</div>
+            <div className="mb-2 text-[#3a4a5d]">{activeBusiness.description}</div>
+            <div className="mb-4 text-[#4a90e2] font-bold">+{activeBusiness.points} points</div>
+            {/* Reviews Section */}
+            <div className="mb-4">
+              <div className="font-semibold mb-1 text-[#3a4a5d]">Reviews:</div>
+              {reviews[activeBusiness.name]?.length ? (
+                <ul className="mb-2 space-y-1 max-h-24 overflow-y-auto">
+                  {reviews[activeBusiness.name].map((r, i) => (
+                    <li key={i} className="text-sm text-[#2d2d2d] bg-[#f5f7fa] rounded px-2 py-1">{r}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-gray-400 mb-2">No reviews yet.</div>
+              )}
+            </div>
+            {checkedIn[activeBusiness.name] ? (
+              <>
+                <span className="text-green-600 font-semibold">You’ve checked in!</span>
+                <form
+                  className="mt-4 flex gap-2"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    if (reviewInput.trim()) {
+                      setReviews(prev => ({
+                        ...prev,
+                        [activeBusiness.name]: [
+                          ...(prev[activeBusiness.name] || []),
+                          reviewInput.trim(),
+                        ],
+                      }));
+                      setReviewInput("");
+                      setTimeout(() => reviewInputRef.current?.focus(), 0);
+                    }
+                  }}
+                >
+                  <input
+                    ref={reviewInputRef}
+                    type="text"
+                    className="flex-1 border border-[#dbe4ea] rounded px-2 py-1 text-sm"
+                    placeholder="Leave a review..."
+                    value={reviewInput}
+                    onChange={e => setReviewInput(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] text-sm"
+                  >
+                    Submit
+                  </button>
+                </form>
+              </>
+            ) : (
+              <button
+                className="mt-2 px-4 py-2 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition"
+                onClick={() => {
+                  setCheckedIn((prev) => ({ ...prev, [activeBusiness.name]: true }));
+                  setTimeout(() => reviewInputRef.current?.focus(), 0);
+                }}
+              >
+                Check In
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Switch Route Modal */}
+      {showSwitchModal && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
+            <button
+              className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
+              onClick={() => setShowSwitchModal(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-[#4a90e2]">Choose a Route</h2>
+            <ul className="space-y-3 w-full">
+              {routeOptions.map((r) => (
+                <li key={r.key}>
+                  <button
+                    className={`w-full text-left px-3 py-2 rounded transition font-semibold ${committedRoute === r.key ? "bg-[#e6f2ff] border-l-4 border-[" + r.color + "]" : "hover:bg-[#f5f7fa]"}`}
+                    onClick={() => handleRouteSelect(r.key)}
+                  >
+                    <span style={{ color: r.color }}>{r.name}</span>
+                    {r.bonus ? <span className="ml-2 text-xs text-[#e94e77]">Bonus: +{r.bonus}</span> : null}
+                  </button>
+                  <div className="ml-6 mt-1 text-xs text-[#3a4a5d]">
+                    Distance: {getRouteDistance(center, r.route).toFixed(2)} km / {(getRouteDistance(center, r.route) * 0.621371).toFixed(2)} mi<br />
+                    Est. walk: {Math.round((getRouteDistance(center, r.route) / 4.8) * 60)} min
+                  </div>
+                  <ol className="ml-6 mt-1 text-sm text-[#3a4a5d] list-decimal">
+                    {r.route.map((biz) => (
+                      <li key={biz.name}>{biz.name}</li>
+                    ))}
+                  </ol>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      {/* Floating Switch Route Button */}
+      <button
+        className="fixed bottom-6 right-6 z-[1050] bg-[#4a90e2] text-white px-5 py-3 rounded-full shadow-lg hover:bg-[#357ab8] transition"
+        onClick={() => setShowSwitchModal(true)}
+      >
+        Switch route?
+      </button>
+      <aside className="hidden md:flex flex-col w-96 min-h-screen bg-white border-r border-[#dbe4ea] p-6">
+        <h2 className="text-2xl font-bold mb-4 text-[#2d2d2d]">Your Points</h2>
+        <div className="text-4xl font-bold text-[#4a90e2] mb-2">{totalWithBonus}</div>
+        {routeCompleted && activeRoute.bonus ? (
+          <div className="mb-4 text-green-600 font-semibold">Bonus! +{activeRoute.bonus} for completing this route</div>
+        ) : null}
+        <h3 className="text-lg font-semibold mb-2 text-[#3a4a5d]">Locations</h3>
+        <ul className="space-y-3 mb-6">
+          {businessWithPoints.map((biz) => (
+            <li key={biz.name} className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <img src={icons[biz.type]} alt={biz.type} width={20} height={20} />
+                <span className={checkedIn[biz.name] ? "line-through text-gray-400" : ""}>{biz.name}</span>
+              </span>
+              <span className="text-[#4a90e2] font-bold">+{biz.points}</span>
+            </li>
+          ))}
+        </ul>
+        <h3 className="text-lg font-semibold mb-2 text-[#3a4a5d]">Routes</h3>
+        <ul className="space-y-2">
+          {routeOptions.map((r) => {
+            const distKm = getRouteDistance(center, r.route);
+            const distMi = distKm * 0.621371;
+            const walkTimeMin = Math.round((distKm / 4.8) * 60); // 4.8 km/h
+            return (
+              <li key={r.key}>
+                <button
+                  className={`w-full text-left px-3 py-2 rounded transition font-semibold ${committedRoute === r.key ? "bg-[#e6f2ff] border-l-4 border-[" + r.color + "]" : "hover:bg-[#f5f7fa]"}`}
+                  onClick={() => {}}
+                  disabled={committedRoute !== r.key}
+                >
+                  <span style={{ color: r.color }}>{r.name}</span>
+                  {r.bonus ? <span className="ml-2 text-xs text-[#e94e77]">Bonus: +{r.bonus}</span> : null}
+                </button>
+                <div className="ml-6 mt-1 text-xs text-[#3a4a5d]">
+                  Distance: {distMi.toFixed(2)} mi / {distKm.toFixed(2)} km<br />
+                  Est. walk: {walkTimeMin} min
+                </div>
+                <ol className="ml-6 mt-1 text-sm text-[#3a4a5d] list-decimal">
+                  {r.route.map((biz) => (
+                    <li key={biz.name}>{biz.name}</li>
+                  ))}
+                </ol>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+      <div className="flex-1 flex flex-col items-center justify-center h-full py-10">
+        <Header />
         <h1 className="text-4xl font-bold mb-2 text-[#2d2d2d]">Your Location Map</h1>
         <p className="mb-6 text-[#3a4a5d] text-lg">Track your latest location visually on the map below.</p>
         <div className="w-[90vw] max-w-4xl h-[60vh] rounded-xl shadow-lg overflow-hidden bg-white border border-[#dbe4ea]">
           <MapContainer
-            center={center as [number, number]}
+            center={[center.lat, center.lng] as [number, number]}
             zoom={15}
             style={{ height: "100%", width: "100%" }}
             scrollWheelZoom={false}
@@ -106,7 +478,7 @@ export default function LocationDashboard() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {/* User/default marker */}
-            <Marker position={center as [number, number]}>
+            <Marker position={[center.lat, center.lng] as [number, number]}>
               <Popup>
                 {hasLocation ? (
                   <>
@@ -128,30 +500,21 @@ export default function LocationDashboard() {
               </Popup>
             </Marker>
             {/* Business pins with custom icons and check-in */}
-            {businesses.map((biz) => (
+            {businessWithPoints.map((biz) => (
               <Marker
                 key={biz.name}
                 position={[biz.lat, biz.lng]}
                 icon={getIcon(biz.type, checkedIn[biz.name])}
-              >
-                <Popup>
-                  <span className="font-semibold">{biz.name}</span>
-                  <br />
-                  {biz.description}
-                  <br />
-                  {checkedIn[biz.name] ? (
-                    <span className="text-green-600 font-semibold">You’ve checked in!</span>
-                  ) : (
-                    <button
-                      className="mt-2 px-3 py-1 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition"
-                      onClick={() => setCheckedIn((prev) => ({ ...prev, [biz.name]: true }))}
-                    >
-                      Check In
-                    </button>
-                  )}
-                </Popup>
-              </Marker>
+                eventHandlers={{
+                  click: () => {
+                    console.log("Marker clicked:", biz.name);
+                    setActiveBusiness(biz);
+                  },
+                }}
+              />
             ))}
+            {/* Draw selected route as polyline */}
+            <Polyline positions={polylinePositions} color={activeRoute.color} weight={6} opacity={0.7} />
           </MapContainer>
         </div>
         {hasLocation && (
