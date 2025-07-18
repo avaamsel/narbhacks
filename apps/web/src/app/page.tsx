@@ -310,7 +310,9 @@ export default function LocationDashboard() {
     return (
       <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
         <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
-          <h2 className="text-2xl font-bold mb-4 text-[#4a90e2]">How are you getting around today?</h2>
+          <img src="/images/pin.svg" alt="pathpal icon" width={40} height={40} className="mb-2" />
+          <h1 className="text-3xl font-bold mb-1 text-[#4a90e2]">Welcome to pathpal!</h1>
+          <div className="mb-6 text-[#3a4a5d] text-lg">let's explore!</div>
           <button
             className="mb-4 px-6 py-3 bg-[#4a90e2] text-white rounded-full text-lg font-semibold hover:bg-[#357ab8] transition"
             onClick={() => { setTravelMode("walking"); setShowModeModal(false); }}
@@ -333,6 +335,9 @@ export default function LocationDashboard() {
     return (
       <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
         <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center">
+          <img src="/images/pin.svg" alt="pathpal icon" width={40} height={40} className="mb-2" />
+          <h1 className="text-3xl font-bold mb-1 text-[#4a90e2]">Welcome to pathpal!</h1>
+          <div className="mb-6 text-[#3a4a5d] text-lg">let's explore!</div>
           <h2 className="text-2xl font-bold mb-6 text-[#4a90e2]">Choose Your Route</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
             {routeOptions.map((r) => {
@@ -428,7 +433,7 @@ export default function LocationDashboard() {
       {/* Congratulatory Modal */}
       {showCongrats && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="absolute inset-0 backdrop-blur-md transition-all" />
           <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
             <button
               className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
@@ -459,7 +464,7 @@ export default function LocationDashboard() {
       {activeBusiness && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
           {/* Faded/blurred overlay */}
-          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="absolute inset-0 backdrop-blur-md transition-all" />
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative z-10">
             <button
               className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
@@ -543,7 +548,7 @@ export default function LocationDashboard() {
       {/* Switch Route Modal (show route cards, note current route) */}
       {showSwitchModal && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center">
-          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="absolute inset-0 backdrop-blur-md transition-all" />
           <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative z-10 flex flex-col items-center">
             <button
               className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
@@ -752,7 +757,7 @@ export default function LocationDashboard() {
       {/* Auth Modal for non-signed-in users */}
       {showAuthModal && (
         <div className="fixed inset-0 z-[1300] flex items-center justify-center">
-          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="absolute inset-0 backdrop-blur-md transition-all" />
           <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
             <button
               className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
