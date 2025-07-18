@@ -24,6 +24,7 @@
     "expo-auth-session": "~6.2.0",
     "expo-constants": "^17.1.7",
     "expo-font": "~13.3.1",
+    "expo-location": "~18.1.6",
     "expo-modules-core": "~1.12.11",
     "expo-system-ui": "~5.0.9",
     "expo-web-browser": "~14.2.0",

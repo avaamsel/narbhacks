@@ -7,7 +7,10 @@
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1440px;
 
-  --color-primary: #0d87e1;
+  --color-primary: #3a4a5d;
+  --color-accent: #4a90e2;
+  --color-bg: #f5f7fa;
+  --color-map-border: #dbe4ea;
 
   --font-inter: Inter, sans-serif;
   --font-lato: Lato, sans-serif;
@@ -38,7 +41,7 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    border-color: var(--color-map-border, currentcolor);
   }
 }
 
@@ -46,9 +49,9 @@
   background: linear-gradient(
     267deg,
     #fff -9.43%,
-    #040218 -9.42%,
+    #e6f2ff -9.42%,
     #fff 4.63%,
-    #d2e4f2 127.55%
+    #dbe4f2 127.55%
   );
 }
 
@@ -67,10 +70,10 @@
   border-radius: 8px;
   background: linear-gradient(
     267deg,
-    #0983df -9.43%,
-    #040218 -9.42%,
-    #0d87e1 4.63%,
-    #0983df 127.55%
+    #4a90e2 -9.43%,
+    #3a4a5d -9.42%,
+    #4a90e2 4.63%,
+    #3a4a5d 127.55%
   );
-  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.10);
 }

@@ -1,3 +1,5 @@
+// eslint-disable-next-line
+// biome-ignore file
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 

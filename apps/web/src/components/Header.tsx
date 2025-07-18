@@ -19,7 +19,8 @@ type NavigationItem = {
 };
 
 const navigation: NavigationItem[] = [
-  { name: "Benefits", href: "#Benefits", current: true },
+  { name: "Map", href: "/", current: true },
+  { name: "Benefits", href: "#Benefits", current: false },
   { name: "Reviews", href: "#reviews", current: false },
 ];
 
@@ -31,7 +32,7 @@ export default function Header() {
     <Disclosure as="nav" className=" ">
       {({ open }) => (
         <>
-          <div className="flex items-center bg-white h-16 sm:h-20">
+          <div className="flex items-center bg-[#f5f7fa] border-b border-[#dbe4ea] h-16 sm:h-20">
             <div className="container px-2 sm:px-0">
               <div className="relative flex h-16 items-center justify-between">
                 <div className="flex sm:hidden shrink-0 items-center">
@@ -48,7 +49,7 @@ export default function Header() {
                           <li key={item.name}>
                             <Link
                               href={item.href}
-                              className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
+                              className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]"
                               aria-current={item.current ? "page" : undefined}
                             >
                               {item.name}
@@ -61,12 +62,12 @@ export default function Header() {
                 )}
                 {user ? (
                   <div className="hidden sm:flex absolute inset-y-0 right-0 gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                    <Link href="/notes">
+                    <Link href="/">
                       <button
                         type="button"
-                        className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-[11px] button"
+                        className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-[11px] button bg-[#4a90e2]"
                       >
-                        See your Notes
+                        See your Map
                       </button>
                     </Link>
                     <div className="flex items-center gap-2">
@@ -80,14 +81,14 @@ export default function Header() {
                 ) : (
                   <div className="hidden sm:flex absolute inset-y-0 right-0 gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                     <Link
-                      href="/notes"
-                      className="border rounded-lg border-solid border-[#2D2D2D] text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-2.5"
+                      href="/"
+                      className="border rounded-lg border-solid border-[#3a4a5d] text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-2.5"
                     >
                       Sign in
                     </Link>
                     <Link
-                      href="/notes"
-                      className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-[11px] button"
+                      href="/"
+                      className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-[11px] button bg-[#4a90e2]"
                     >
                       Get Started
                     </Link>
@@ -124,13 +125,13 @@ export default function Header() {
               ))}
               <div className="flex gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                 <Link
-                  href="/notes"
+                  href="/"
                   className="border rounded-lg border-solid border-[#2D2D2D] text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-[5px]"
                 >
                   Sign in
                 </Link>
                 <Link
-                  href="/notes"
+                  href="/"
                   className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-5 py-1.5 button"
                 >
                   Get Started
