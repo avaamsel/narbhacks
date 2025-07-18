@@ -1,6 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/clerk-react";
+import { SignOutButton } from "@clerk/nextjs";
 import {
   Disclosure,
   DisclosureButton,
@@ -59,14 +60,14 @@ export default function Header() {
                 </div>
                 {user ? (
                   <div className="hidden sm:flex absolute inset-y-0 right-0 gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-                    <Link href="/">
+                    <SignOutButton>
                       <button
                         type="button"
                         className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition text-xl not-italic font-montserrat"
                       >
-                        See your Map
+                        Log Out
                       </button>
-                    </Link>
+                    </SignOutButton>
                     <div className="flex items-center gap-2">
                       <UserNav
                         image={user?.imageUrl}

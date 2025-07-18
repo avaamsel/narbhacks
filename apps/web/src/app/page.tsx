@@ -176,7 +176,7 @@ export default function LocationDashboard() {
   const [routeStarted, setRouteStarted] = useState(false);
   const [showRouteSelect, setShowRouteSelect] = useState(true);
   const [placeName, setPlaceName] = useState("Los Angeles");
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
@@ -308,7 +308,10 @@ export default function LocationDashboard() {
   // Show travel mode modal before route selection
   if (!travelMode && showModeModal) {
     return (
-      <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
+        {isSignedIn && (
+          <div className="mb-4 text-2xl font-bold text-[#4a90e2]">Welcome back to pathpal, {user?.fullName || user?.username || "explorer"}!</div>
+        )}
         <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
           <img src="/images/pin.svg" alt="pathpal icon" width={40} height={40} className="mb-2" />
           <h1 className="text-3xl font-bold mb-1 text-[#4a90e2]">Welcome to pathpal!</h1>
@@ -326,6 +329,9 @@ export default function LocationDashboard() {
             🛴 Wheels (bike, scooter, etc.)
           </button>
         </div>
+        <SignInButton mode="modal">
+          <button className="mt-6 px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition text-lg">Sign In</button>
+        </SignInButton>
       </div>
     );
   }
