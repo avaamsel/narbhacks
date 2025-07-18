@@ -82,13 +82,13 @@ export default function Header() {
                   <div className="hidden sm:flex absolute inset-y-0 right-0 gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                     <Link
                       href="/"
-                      className="border rounded-lg border-solid border-[#3a4a5d] text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-2.5"
+                      className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition text-xl not-italic font-montserrat"
                     >
                       Sign in
                     </Link>
                     <Link
                       href="/"
-                      className=" text-white text-center text-xl not-italic font-normal leading-[normal] font-montserrat px-[22px] py-[11px] button bg-[#4a90e2]"
+                      className="px-6 py-2 bg-[#f5a623] text-white rounded font-semibold hover:bg-[#e94e77] transition text-xl not-italic font-montserrat"
                     >
                       Get Started
                     </Link>

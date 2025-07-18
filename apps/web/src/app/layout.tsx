@@ -10,7 +10,7 @@ const montserrat = Montserrat({ subsets: ["latin"] });
 const lato = Lato({ weight: "400", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "narby",
+  title: "pathpal",
   description: "A simple location tracker app.",
 };
 

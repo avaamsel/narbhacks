@@ -8,6 +8,8 @@ import "leaflet/dist/leaflet.css";
 import { useState, useMemo, useEffect } from "react";
 import L from "leaflet";
 import { useRef } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then(mod => mod.MapContainer),
@@ -26,6 +28,23 @@ const Popup = dynamic(
   { ssr: false }
 );
 const Polyline = dynamic(
+  () => import("react-leaflet").then(mod => mod.Polyline),
+  { ssr: false }
+);
+
+const MiniMapContainer = dynamic(
+  () => import("react-leaflet").then(mod => mod.MapContainer),
+  { ssr: false }
+);
+const MiniTileLayer = dynamic(
+  () => import("react-leaflet").then(mod => mod.TileLayer),
+  { ssr: false }
+);
+const MiniMarker = dynamic(
+  () => import("react-leaflet").then(mod => mod.Marker),
+  { ssr: false }
+);
+const MiniPolyline = dynamic(
   () => import("react-leaflet").then(mod => mod.Polyline),
   { ssr: false }
 );
@@ -128,6 +147,13 @@ function getRouteDistance(start, route) {
   return total;
 }
 
+const MiniDotIcon = (color: string = '#4a90e2') => L.divIcon({
+  className: '',
+  html: `<div style="width:14px;height:14px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 0 2px #333;"></div>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
 export default function LocationDashboard() {
   const location = useQuery(api.locations.getLocation, {});
   const hasLocation = location && location.latitude && location.longitude;
@@ -144,6 +170,32 @@ export default function LocationDashboard() {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [travelMode, setTravelMode] = useState<string | null>(null);
   const [showModeModal, setShowModeModal] = useState(true);
+  const [checkinTimes, setCheckinTimes] = useState<{ [name: string]: number }>({});
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [endTime, setEndTime] = useState<number | null>(null);
+  const [routeStarted, setRouteStarted] = useState(false);
+  const [showRouteSelect, setShowRouteSelect] = useState(true);
+  const [placeName, setPlaceName] = useState("Los Angeles");
+  const { isSignedIn } = useUser();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    async function fetchPlaceName() {
+      if (hasLocation) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${location.latitude}&lon=${location.longitude}`
+          );
+          const data = await res.json();
+          const city = data.address.city || data.address.town || data.address.village || data.address.neighbourhood || data.address.suburb;
+          setPlaceName(city || "Los Angeles");
+        } catch {
+          setPlaceName("Los Angeles");
+        }
+      }
+    }
+    fetchPlaceName();
+  }, [hasLocation, location?.latitude, location?.longitude]);
 
   // Custom SVG icons as data URLs (move inside component)
   const icons = {
@@ -220,11 +272,37 @@ export default function LocationDashboard() {
     }
   }, [routeCompleted, activeRoute.route.length]);
 
+  // When user checks in, record time
+  const handleCheckIn = (bizName: string) => {
+    if (!routeStarted) return;
+    const now = Date.now();
+    setCheckedIn((prev) => ({ ...prev, [bizName]: true }));
+    setCheckinTimes((prev) => ({ ...prev, [bizName]: now }));
+    if (!startTime) setStartTime(now);
+  };
+
+  // When route is completed, record end time
+  useEffect(() => {
+    if (routeCompleted && activeRoute.route.length > 0 && !endTime) {
+      setEndTime(Date.now());
+    }
+  }, [routeCompleted, activeRoute.route.length, endTime]);
+
   // Only allow switching route via the modal
   const handleRouteSelect = (key: string) => {
     setCommittedRoute(key);
     setSelectedRoute(key);
     setShowSwitchModal(false);
+  };
+
+  // When user clicks Start Route, set startTime or show auth modal
+  const handleStartRoute = () => {
+    if (!isSignedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+    setRouteStarted(true);
+    if (!startTime) setStartTime(Date.now());
   };
 
   // Show travel mode modal before route selection
@@ -248,6 +326,101 @@ export default function LocationDashboard() {
         </div>
       </div>
     );
+  }
+
+  // Show route selection screen after travel mode
+  if (showRouteSelect && travelMode) {
+    return (
+      <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center">
+          <h2 className="text-2xl font-bold mb-6 text-[#4a90e2]">Choose Your Route</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+            {routeOptions.map((r) => {
+              const distKm = getRouteDistance(center, r.route);
+              const distMi = distKm * 0.621371;
+              const walkTimeMin = Math.round((distKm / 4.8) * 60);
+              // Mini map center: first business or center
+              const miniCenter = r.route.length ? [r.route[0].lat, r.route[0].lng] : [center.lat, center.lng];
+              const miniPolyline = [
+                [center.lat, center.lng],
+                ...r.route.map((biz) => [biz.lat, biz.lng]),
+              ];
+              return (
+                <div key={r.key} className="bg-[#f5f7fa] rounded-lg shadow p-4 flex flex-col items-start border border-[#dbe4ea] h-[420px] justify-between">
+                  <div className="w-full">
+                    <div className="font-bold text-lg mb-2" style={{ color: r.color }}>{r.name}</div>
+                    {r.bonus ? <div className="mb-1 text-xs text-[#e94e77]">Bonus: +{r.bonus}</div> : <div className="mb-1 text-xs" style={{ height: 18 }}></div>}
+                    <div className="mb-1 text-xs text-[#3a4a5d]">Distance: {distMi.toFixed(2)} mi / {distKm.toFixed(2)} km</div>
+                    <div className="mb-1 text-xs text-[#3a4a5d]">Est. walk: {walkTimeMin} min</div>
+                    <div className="my-2 w-full h-24 rounded overflow-hidden border border-[#dbe4ea] bg-white">
+                      <MiniMapContainer
+                        center={miniCenter as [number, number]}
+                        zoom={14}
+                        style={{ height: "100%", width: "100%" }}
+                        scrollWheelZoom={false}
+                        dragging={false}
+                        doubleClickZoom={false}
+                        zoomControl={false}
+                        attributionControl={false}
+                      >
+                        <MiniTileLayer
+                          attribution=""
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <MiniMarker position={[center.lat, center.lng]} icon={MiniDotIcon('#4a90e2')} />
+                        {r.route.map((biz, i) => (
+                          <MiniMarker key={biz.name} position={[biz.lat, biz.lng]} icon={MiniDotIcon(r.color)} />
+                        ))}
+                        <MiniPolyline positions={miniPolyline} color={r.color} weight={4} opacity={0.7} />
+                      </MiniMapContainer>
+                    </div>
+                    <ol className="ml-4 mt-2 text-sm text-[#3a4a5d] list-decimal">
+                      {r.route.map((biz) => (
+                        <li key={biz.name}>{biz.name}</li>
+                      ))}
+                    </ol>
+                  </div>
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition w-full font-semibold self-end"
+                    style={{ marginTop: "auto" }}
+                    onClick={() => {
+                      setCommittedRoute(r.key);
+                      setSelectedRoute(r.key);
+                      setShowRouteSelect(false);
+                    }}
+                  >
+                    Choose this route
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper to format time
+  function formatTime(ts: number | null) {
+    if (!ts) return "-";
+    return new Date(ts).toLocaleTimeString();
+  }
+  function formatElapsed(ms: number) {
+    const min = Math.floor(ms / 60000);
+    const sec = Math.floor((ms % 60000) / 1000);
+    return `${min}m ${sec}s`;
+  }
+
+  // Helper to get distance walked so far
+  function getDistanceWalkedSoFar() {
+    let total = 0;
+    let prev = center;
+    for (const biz of activeRoute.route) {
+      if (!checkedIn[biz.name]) break;
+      total += getDistance(prev.lat, prev.lng, biz.lat, biz.lng);
+      prev = biz;
+    }
+    return total;
   }
 
   return (
@@ -358,10 +531,8 @@ export default function LocationDashboard() {
             ) : (
               <button
                 className="mt-2 px-4 py-2 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition"
-                onClick={() => {
-                  setCheckedIn((prev) => ({ ...prev, [activeBusiness.name]: true }));
-                  setTimeout(() => reviewInputRef.current?.focus(), 0);
-                }}
+                onClick={() => handleCheckIn(activeBusiness.name)}
+                disabled={!routeStarted}
               >
                 Check In
               </button>
@@ -369,11 +540,11 @@ export default function LocationDashboard() {
           </div>
         </div>
       )}
-      {/* Switch Route Modal */}
+      {/* Switch Route Modal (show route cards, note current route) */}
       {showSwitchModal && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center">
           <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
-          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative z-10 flex flex-col items-center">
             <button
               className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
               onClick={() => setShowSwitchModal(false)}
@@ -382,28 +553,67 @@ export default function LocationDashboard() {
               ×
             </button>
             <h2 className="text-xl font-bold mb-4 text-[#4a90e2]">Choose a Route</h2>
-            <ul className="space-y-3 w-full">
-              {routeOptions.map((r) => (
-                <li key={r.key}>
-                  <button
-                    className={`w-full text-left px-3 py-2 rounded transition font-semibold ${committedRoute === r.key ? "bg-[#e6f2ff] border-l-4 border-[" + r.color + "]" : "hover:bg-[#f5f7fa]"}`}
-                    onClick={() => handleRouteSelect(r.key)}
-                  >
-                    <span style={{ color: r.color }}>{r.name}</span>
-                    {r.bonus ? <span className="ml-2 text-xs text-[#e94e77]">Bonus: +{r.bonus}</span> : null}
-                  </button>
-                  <div className="ml-6 mt-1 text-xs text-[#3a4a5d]">
-                    Distance: {getRouteDistance(center, r.route).toFixed(2)} km / {(getRouteDistance(center, r.route) * 0.621371).toFixed(2)} mi<br />
-                    Est. walk: {Math.round((getRouteDistance(center, r.route) / 4.8) * 60)} min
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+              {routeOptions.map((r) => {
+                const distKm = getRouteDistance(center, r.route);
+                const distMi = distKm * 0.621371;
+                const walkTimeMin = Math.round((distKm / 4.8) * 60);
+                const miniCenter = r.route.length ? [r.route[0].lat, r.route[0].lng] : [center.lat, center.lng];
+                const miniPolyline = [
+                  [center.lat, center.lng],
+                  ...r.route.map((biz) => [biz.lat, biz.lng]),
+                ];
+                const isCurrent = committedRoute === r.key;
+                return (
+                  <div key={r.key} className="bg-[#f5f7fa] rounded-lg shadow p-4 flex flex-col items-start border border-[#dbe4ea] h-[420px] justify-between relative">
+                    {isCurrent && (
+                      <div className="absolute top-2 right-2 bg-[#4a90e2] text-white text-xs px-2 py-1 rounded">Current</div>
+                    )}
+                    <div className="w-full">
+                      <div className="font-bold text-lg mb-2" style={{ color: r.color }}>{r.name}</div>
+                      {r.bonus ? <div className="mb-1 text-xs text-[#e94e77]">Bonus: +{r.bonus}</div> : <div className="mb-1 text-xs" style={{ height: 18 }}></div>}
+                      <div className="mb-1 text-xs text-[#3a4a5d]">Distance: {distMi.toFixed(2)} mi / {distKm.toFixed(2)} km</div>
+                      <div className="mb-1 text-xs text-[#3a4a5d]">Est. walk: {walkTimeMin} min</div>
+                      <div className="my-2 w-full h-24 rounded overflow-hidden border border-[#dbe4ea] bg-white">
+                        <MiniMapContainer
+                          center={miniCenter as [number, number]}
+                          zoom={14}
+                          style={{ height: "100%", width: "100%" }}
+                          scrollWheelZoom={false}
+                          dragging={false}
+                          doubleClickZoom={false}
+                          zoomControl={false}
+                          attributionControl={false}
+                        >
+                          <MiniTileLayer
+                            attribution=""
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <MiniMarker position={[center.lat, center.lng]} icon={MiniDotIcon('#4a90e2')} />
+                          {r.route.map((biz, i) => (
+                            <MiniMarker key={biz.name} position={[biz.lat, biz.lng]} icon={MiniDotIcon(r.color)} />
+                          ))}
+                          <MiniPolyline positions={miniPolyline} color={r.color} weight={4} opacity={0.7} />
+                        </MiniMapContainer>
+                      </div>
+                      <ol className="ml-4 mt-2 text-sm text-[#3a4a5d] list-decimal">
+                        {r.route.map((biz) => (
+                          <li key={biz.name}>{biz.name}</li>
+                        ))}
+                      </ol>
+                    </div>
+                    <button
+                      className="mt-4 px-4 py-2 bg-[#4a90e2] text-white rounded hover:bg-[#357ab8] transition w-full font-semibold self-end disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ marginTop: "auto" }}
+                      onClick={() => handleRouteSelect(r.key)}
+                      disabled={isCurrent}
+                    >
+                      {isCurrent ? "Current Route" : "Choose this route"}
+                    </button>
                   </div>
-                  <ol className="ml-6 mt-1 text-sm text-[#3a4a5d] list-decimal">
-                    {r.route.map((biz) => (
-                      <li key={biz.name}>{biz.name}</li>
-                    ))}
-                  </ol>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -415,14 +625,25 @@ export default function LocationDashboard() {
         Switch route?
       </button>
       <aside className="hidden md:flex flex-col w-96 min-h-screen bg-white border-r border-[#dbe4ea] p-6">
-        <h2 className="text-2xl font-bold mb-4 text-[#2d2d2d]">Your Points</h2>
+        <h2 className="text-2xl font-bold mb-2 text-[#4a90e2]">{activeRoute.name}</h2>
         <div className="text-4xl font-bold text-[#4a90e2] mb-2">{totalWithBonus}</div>
         {routeCompleted && activeRoute.bonus ? (
           <div className="mb-4 text-green-600 font-semibold">Bonus! +{activeRoute.bonus} for completing this route</div>
         ) : null}
+        {/* Start Route Button */}
+        {!routeStarted ? (
+          <button
+            className="mb-4 px-6 py-3 bg-[#4a90e2] text-white rounded-full text-lg font-semibold hover:bg-[#357ab8] transition"
+            onClick={handleStartRoute}
+          >
+            Start Route
+          </button>
+        ) : (
+          <div className="mb-4 text-green-600 font-semibold">Route started!</div>
+        )}
         <h3 className="text-lg font-semibold mb-2 text-[#3a4a5d]">Locations</h3>
         <ul className="space-y-3 mb-6">
-          {businessWithPoints.map((biz) => (
+          {activeRoute.route.map((biz) => (
             <li key={biz.name} className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <img src={icons[biz.type]} alt={biz.type} width={20} height={20} />
@@ -432,39 +653,23 @@ export default function LocationDashboard() {
             </li>
           ))}
         </ul>
-        <h3 className="text-lg font-semibold mb-2 text-[#3a4a5d]">Routes</h3>
-        <ul className="space-y-2">
-          {routeOptions.map((r) => {
-            const distKm = getRouteDistance(center, r.route);
-            const distMi = distKm * 0.621371;
-            const walkTimeMin = Math.round((distKm / 4.8) * 60); // 4.8 km/h
-            return (
-              <li key={r.key}>
-                <button
-                  className={`w-full text-left px-3 py-2 rounded transition font-semibold ${committedRoute === r.key ? "bg-[#e6f2ff] border-l-4 border-[" + r.color + "]" : "hover:bg-[#f5f7fa]"}`}
-                  onClick={() => {}}
-                  disabled={committedRoute !== r.key}
-                >
-                  <span style={{ color: r.color }}>{r.name}</span>
-                  {r.bonus ? <span className="ml-2 text-xs text-[#e94e77]">Bonus: +{r.bonus}</span> : null}
-                </button>
-                <div className="ml-6 mt-1 text-xs text-[#3a4a5d]">
-                  Distance: {distMi.toFixed(2)} mi / {distKm.toFixed(2)} km<br />
-                  Est. walk: {walkTimeMin} min
-                </div>
-                <ol className="ml-6 mt-1 text-sm text-[#3a4a5d] list-decimal">
-                  {r.route.map((biz) => (
-                    <li key={biz.name}>{biz.name}</li>
-                  ))}
-                </ol>
-              </li>
-            );
-          })}
-        </ul>
+        <h3 className="text-lg font-semibold mb-2 text-[#3a4a5d]">Route</h3>
+        <div className="mb-2 text-xs text-[#3a4a5d]">
+          Distance: {(getDistanceWalkedSoFar() * 0.621371).toFixed(2)} mi / {getDistanceWalkedSoFar().toFixed(2)} km<br />
+          Est. walk so far: {Math.round((getDistanceWalkedSoFar() / 4.8) * 60)} min
+          {routeCompleted && (
+            <><br />Total route: {(getRouteDistance(center, activeRoute.route) * 0.621371).toFixed(2)} mi / {getRouteDistance(center, activeRoute.route).toFixed(2)} km</>
+          )}
+        </div>
+        <ol className="ml-6 mt-1 text-sm text-[#3a4a5d] list-decimal">
+          {activeRoute.route.map((biz) => (
+            <li key={biz.name}>{biz.name}</li>
+          ))}
+        </ol>
       </aside>
       <div className="flex-1 flex flex-col items-center justify-center h-full py-10">
-        <Header />
-        <h1 className="text-4xl font-bold mb-2 text-[#2d2d2d]">Your Location Map</h1>
+      <Header />
+        <h1 className="text-4xl font-bold mb-2 text-[#2d2d2d] pt-8">Let's explore {placeName}!</h1>
         <p className="mb-6 text-[#3a4a5d] text-lg">Track your latest location visually on the map below.</p>
         <div className="w-[90vw] max-w-4xl h-[60vh] rounded-xl shadow-lg overflow-hidden bg-white border border-[#dbe4ea]">
           <MapContainer
@@ -478,7 +683,7 @@ export default function LocationDashboard() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {/* User/default marker */}
-            <Marker position={[center.lat, center.lng] as [number, number]}>
+            <Marker position={[center.lat, center.lng] as [number, number]} icon={MiniDotIcon('#4a90e2')}>
               <Popup>
                 {hasLocation ? (
                   <>
@@ -504,7 +709,7 @@ export default function LocationDashboard() {
               <Marker
                 key={biz.name}
                 position={[biz.lat, biz.lng]}
-                icon={getIcon(biz.type, checkedIn[biz.name])}
+                icon={MiniDotIcon(activeRoute.color)}
                 eventHandlers={{
                   click: () => {
                     console.log("Marker clicked:", biz.name);
@@ -517,12 +722,58 @@ export default function LocationDashboard() {
             <Polyline positions={polylinePositions} color={activeRoute.color} weight={6} opacity={0.7} />
           </MapContainer>
         </div>
+        {/* Path Stats Section */}
+        {routeStarted && (
+          <div className="w-[90vw] max-w-4xl mt-8 bg-white rounded-xl shadow p-6 border border-[#dbe4ea]">
+            <h3 className="text-lg font-bold mb-2 text-[#4a90e2]">Your Path Stats</h3>
+            <div className="mb-2 text-[#3a4a5d]">Start time: <span className="font-semibold">{formatTime(startTime)}</span></div>
+            <ul className="mb-2 text-[#3a4a5d]">
+              {activeRoute.route.map((biz) => (
+                <li key={biz.name} className="flex items-center gap-2">
+                  <span>{biz.name}:</span>
+                  <span className="font-mono">{formatTime(checkinTimes[biz.name] || null)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mb-2 text-[#3a4a5d]">Finish time: <span className="font-semibold">{formatTime(endTime)}</span></div>
+            <div className="mb-2 text-[#3a4a5d]">Distance walked so far: <span className="font-semibold">{getDistanceWalkedSoFar().toFixed(2)} km</span> / <span className="font-semibold">{(getDistanceWalkedSoFar() * 0.621371).toFixed(2)} mi</span></div>
+            {routeCompleted && (
+              <div className="mb-2 text-[#3a4a5d]">Total route: <span className="font-semibold">{getRouteDistance(center, activeRoute.route).toFixed(2)} km</span> / <span className="font-semibold">{(getRouteDistance(center, activeRoute.route) * 0.621371).toFixed(2)} mi</span></div>
+            )}
+            <div className="text-[#3a4a5d]">Total elapsed: <span className="font-semibold">{startTime && endTime ? formatElapsed(endTime - startTime) : "-"}</span></div>
+          </div>
+        )}
         {hasLocation && (
           <p className="text-xs text-[#3a4a5d] mt-4">
             Last updated: {location.timestamp ? new Date(location.timestamp).toLocaleString() : "Unknown"}
           </p>
         )}
       </div>
+      {/* Auth Modal for non-signed-in users */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center">
+          <div className="absolute inset-0 bg-white bg-opacity-60 backdrop-blur-sm transition-all" />
+          <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative z-10 flex flex-col items-center">
+            <button
+              className="absolute top-2 right-2 text-2xl text-gray-400 hover:text-gray-600"
+              onClick={() => setShowAuthModal(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <div className="text-2xl font-bold mb-4 text-[#4a90e2]">Explore this path with an account!</div>
+            <div className="mb-6 text-[#3a4a5d] text-center">Sign in or sign up to start your adventure and track your progress.</div>
+            <div className="flex gap-4">
+              <SignInButton mode="modal">
+                <button className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition">Sign In</button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="px-6 py-2 bg-[#f5a623] text-white rounded font-semibold hover:bg-[#e94e77] transition">Sign Up</button>
+              </SignUpButton>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
