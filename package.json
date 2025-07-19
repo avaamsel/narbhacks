@@ -1,5 +1,6 @@
 {
   "name": "narby-monorepo",
+  "main": "index.js",
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
@@ -23,5 +24,10 @@
     "apps/*",
     "packages/*"
   ],
-  "packageManager": "pnpm@9.15.1"
+  "packageManager": "pnpm@9.15.1",
+  "dependencies": {
+    "expo": "^53.0.20",
+    "expo-modules-core": "~2.5.0",
+    "react-native": "^0.79.5"
+  }
 }

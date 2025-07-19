@@ -1,11 +1,16 @@
 import { useFonts } from "expo-font";
 import { LogBox, Platform, StatusBar, View } from "react-native";
-import ConvexClientProvider from "./ConvexClientProvider";
 import Navigation from "./src/navigation/Navigation";
 
 export default function App() {
-  LogBox.ignoreLogs(["Warning: ..."]);
-  LogBox.ignoreAllLogs();
+  // Ensure proper initialization order
+  if (__DEV__) {
+    // Only ignore logs in development, and do it after proper setup
+    setTimeout(() => {
+      LogBox.ignoreLogs(["Warning: ..."]);
+      LogBox.ignoreAllLogs();
+    }, 0);
+  }
 
   const [loaded] = useFonts({
     Bold: require("./src/assets/fonts/Inter-Bold.ttf"),
@@ -27,17 +32,15 @@ export default function App() {
     Platform.OS === "ios" ? 50 : StatusBar.currentHeight;
 
   return (
-    <ConvexClientProvider>
-      <View style={{ flex: 1 }}>
-        <View style={{ height: STATUS_BAR_HEIGHT, backgroundColor: "#0D87E1" }}>
-          <StatusBar
-            translucent
-            backgroundColor={"#0D87E1"}
-            barStyle="light-content"
-          />
-        </View>
-        <Navigation />
+    <View style={{ flex: 1 }}>
+      <View style={{ height: STATUS_BAR_HEIGHT, backgroundColor: "#0D87E1" }}>
+        <StatusBar
+          translucent
+          backgroundColor={"#0D87E1"}
+          barStyle="light-content"
+        />
       </View>
-    </ConvexClientProvider>
+      <Navigation />
+    </View>
   );
 }
