@@ -1,8 +1,7 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import Header from "@/components/Header";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
 import type { MapContainerProps } from "react-leaflet";
 import type { TileLayerProps } from "react-leaflet";
 import type { PolylineProps } from "react-leaflet";
@@ -10,6 +9,8 @@ import type { MarkerProps } from "react-leaflet";
 import Link from "next/link";
 import LeafletIconFix from "@/components/LeafletIconFix";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 const MapContainer: React.ComponentType<MapContainerProps> = dynamic<MapContainerProps>(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -42,7 +43,7 @@ type Route = {
   mode: 'walk' | 'wheels';
 };
 
-const routes: Record<string, Route> = {
+const defaultRoutes: Record<string, Route> = {
   shortest: {
     name: "Weekend walk",
     description: "Weekend walk with Elise",
@@ -57,11 +58,24 @@ const routes: Record<string, Route> = {
   },
   scenic: {
     name: "Scenic Stroll",
-    description: "A relaxing, fun walk past your favorite spots!",
     businesses: [0, 4, 8], // 3 locations
     mode: 'walk',
   }
 };
+
+function getUserRoutes(): Record<string, Route> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem('userRoutes');
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return {};
+}
+
+function saveUserRoutes(routes: Record<string, Route>) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('userRoutes', JSON.stringify(routes));
+}
 
 const walkingBusinesses: Business[] = [
   { name: "Sunset Coffee", lat: 34.0522, lng: -118.2437, category: "Coffee Shop" },
@@ -128,16 +142,66 @@ const MyPaths: React.FC = (): JSX.Element => {
   const [mounted, setMounted] = useState(false);
   const [hiddenPaths, setHiddenPaths] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<{ routeKey: string | null; type: 'buddies' | 'locations' | null }>({ routeKey: null, type: null });
+  const [userRoutes, setUserRoutes] = useState<Record<string, Route>>({});
+  // On mount, load user routes from localStorage
+  useEffect(() => {
+    setUserRoutes(getUserRoutes());
+  }, []);
+
+  // Listen for ?created=1 and reload user routes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('created')) {
+        setUserRoutes(getUserRoutes());
+        params.delete('created');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
   useEffect(() => {
     setMounted(true);
   }, []);
-  const routeEntries = useMemo((): [string, Route][] => Object.entries(routes), []);
+  const routeEntries = useMemo(() => {
+    return [
+      ...Object.entries(defaultRoutes),
+      ...Object.entries(userRoutes),
+    ];
+  }, [userRoutes]);
+  const { user } = useUser();
+  const username = user?.fullName || user?.username || null;
+
+  if (!user) {
+    return (
+      <>
+        <LeafletIconFix />
+        <Header />
+        <main className="min-h-screen bg-[#f5f7fa] flex flex-col items-center justify-start pt-12 pb-12">
+          <div className="bg-blue-100 rounded-xl p-8 shadow flex flex-col items-center">
+            <img src="/images/pin.svg" alt="marker logo" className="w-10 h-10 mb-4" />
+            <h1 className="text-3xl font-bold text-[#4a90e2] mb-4">You must have an account to create paths!</h1>
+            <p className="text-lg text-gray-600 mb-6">Sign in or sign up to start exploring!</p>
+            <div className="flex gap-4">
+              <SignInButton mode="modal">
+                <button className="px-6 py-2 bg-[#4a90e2] text-white rounded font-semibold hover:bg-[#357ab8] transition">Sign In</button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="px-6 py-2 bg-[#f5a623] text-white rounded font-semibold hover:bg-[#e94e77] transition">Sign Up</button>
+              </SignUpButton>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
   return (
     <>
       <LeafletIconFix />
       <Header />
-      <main className="min-h-screen bg-[#f5f7fa] flex flex-col items-center pb-12">
-        <h1 className="text-4xl font-bold text-[#4a90e2] mb-10">My Paths</h1>
+      <main className="min-h-screen bg-[#f5f7fa] flex flex-col items-center justify-start pb-12">
+        <h1 className="text-4xl font-bold text-[#4a90e2] mt-4 mb-8">
+          {username ? `${username}'s paths` : 'My Paths'}
+        </h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
           {routeEntries.filter(([routeKey]) => !hiddenPaths.includes(routeKey)).map(([routeKey, route]): JSX.Element => {
             const info = calculateRouteInfo(route);
@@ -152,12 +216,11 @@ const MyPaths: React.FC = (): JSX.Element => {
             }
             const isBuddiesOpen = openDropdown.routeKey === routeKey && openDropdown.type === 'buddies';
             const isLocationsOpen = openDropdown.routeKey === routeKey && openDropdown.type === 'locations';
-            // Determine buddies for each path
-            let buddies: string[] = [];
+            const buddies: string[] = [];
             if (routeKey === 'shortest') {
-              buddies = ['Elise'];
+              buddies.push('Elise');
             } else if (routeKey === 'tricky1') {
-              buddies = ['Elise', 'Ryder', 'Gabe', 'Jian'];
+              buddies.push('Elise', 'Ryder', 'Gabe', 'Jian');
             }
             return (
               <div
@@ -167,7 +230,20 @@ const MyPaths: React.FC = (): JSX.Element => {
                 <button
                   className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold z-10"
                   aria-label="Delete path"
-                  onClick={() => setHiddenPaths(prev => [...prev, routeKey])}
+                  onClick={() => {
+                    if (routeKey.startsWith('user_')) {
+                      // Remove from localStorage and state
+                      let userRoutes = {};
+                      try {
+                        userRoutes = JSON.parse(localStorage.getItem('userRoutes') || '{}');
+                      } catch {}
+                      delete userRoutes[routeKey];
+                      localStorage.setItem('userRoutes', JSON.stringify(userRoutes));
+                      setUserRoutes(userRoutes);
+                    } else {
+                      setHiddenPaths(prev => [...prev, routeKey]);
+                    }
+                  }}
                 >
                   ×
                 </button>
@@ -216,12 +292,12 @@ const MyPaths: React.FC = (): JSX.Element => {
                       <div className="text-sm font-semibold text-[#3a4a5d]">~{info.timeMinutes}m</div>
                     </div>
                     <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mb-1">
-                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-                        </svg>
-                      </div>
+                    <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mb-1">
+                          <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+                            <circle cx="12" cy="12" r="4" fill="currentColor" />
+                          </svg>
+                        </div>
                       <div className="text-xs text-gray-500">Locations</div>
                       <div className="text-sm font-semibold text-[#3a4a5d]">{route.businesses.length}</div>
                     </div>
@@ -257,7 +333,7 @@ const MyPaths: React.FC = (): JSX.Element => {
                     Locations
                     <span>{isLocationsOpen ? '▲' : '▼'}</span>
                   </button>
-                  {isLocationsOpen ? (
+                  {isLocationsOpen && (
                     <div className="p-3 bg-gray-50 border rounded-b text-sm text-gray-600">
                       <ul className="list-disc pl-5">
                         {routeBusinesses.map((biz) => (
@@ -265,7 +341,7 @@ const MyPaths: React.FC = (): JSX.Element => {
                         ))}
                       </ul>
                     </div>
-                  ) : null}
+                  )}
                 </div>
                 <div className="mt-auto flex w-full justify-center">
                   <Link
@@ -282,7 +358,7 @@ const MyPaths: React.FC = (): JSX.Element => {
         <div className="mt-12 flex justify-center w-full">
           <Link href="/create" className="px-6 py-3 bg-[#4a90e2] text-white rounded-lg font-semibold shadow hover:bg-[#357ab8] transition text-lg">
             Create New Path
-          </Link>
+            </Link>
         </div>
       </main>
     </>

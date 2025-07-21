@@ -10,7 +10,7 @@ export default function StatsPage() {
   const [city, setCity] = useState("Los Angeles");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   // Mock stats for demo
-  const [totalMiles, setTotalMiles] = useState(123.4); // Replace with real data if available
+  const [totalMiles, setTotalMiles] = useState(64.2); // Replace with real data if available
   const [totalMinutes, setTotalMinutes] = useState(2100); // Replace with real data if available
 
   // Mock city visit data
@@ -30,12 +30,14 @@ export default function StatsPage() {
   ];
 
   // Mock leaderboard data
-  const leaderboard = [
-    { name: "You", points: totalPoints, image: user?.imageUrl || "/images/pin.svg" },
+  const leaderboardRaw = [
+    { name: user?.fullName || user?.username || "You", image: user?.imageUrl || "/images/pin.svg" },
     { name: "Elise", image: "/images/profile.png" },
     { name: "Gabe", image: "/images/profile.png" },
     { name: "Ryder", image: "/images/profile.png" },
   ];
+  const currentUserName = user?.fullName || user?.username || "You";
+  const leaderboard = leaderboardRaw.filter(f => f.name !== currentUserName);
 
   useEffect(() => {
     // Try to get user's current city from geolocation
@@ -89,18 +91,16 @@ export default function StatsPage() {
           </div>
         )}
         <div className="mb-2 text-[#3a4a5d] text-lg text-center">{city}</div>
-        <div className="mb-6 text-[#4a90e2] text-2xl font-bold text-center">Total Points: {totalPoints}</div>
         <div className="w-full flex flex-col gap-4 mb-6">
           <div className="flex justify-between text-lg">
-            <span className="font-semibold text-[#3a4a5d]">Total miles walked:</span>
-            <span className="font-mono">{totalMiles.toFixed(2)} mi</span>
+            <span className="font-semibold text-[#3a4a5d]">Total miles travelled:</span>
+            <span>{totalMiles.toFixed(2)} mi</span>
           </div>
           <div className="flex justify-between text-lg">
-            <span className="font-semibold text-[#3a4a5d]">Total time walked:</span>
-            <span className="font-mono">{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</span>
+            <span className="font-semibold text-[#3a4a5d]">Total time exploring:</span>
+            <span>{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</span>
           </div>
         </div>
-        <div className="text-[#3a4a5d] text-sm mt-4 text-center">More stats and badges coming soon!</div>
       </aside>
       {/* Right main content */}
       <section className="flex-1 flex flex-col gap-6">
@@ -122,14 +122,12 @@ export default function StatsPage() {
         </div>
         {/* Leaderboard */}
         <div className="w-full bg-[#e6f2ff] rounded p-4">
-          <div className="text-lg font-semibold text-[#4a90e2] mb-1">Leaderboard</div>
+          <div className="text-lg font-semibold text-[#4a90e2] mb-1">Friends</div>
           <ul>
             {leaderboard.map((f, i) => (
               <li key={f.name} className="flex items-center gap-3 mb-2">
-                <span className="text-xl font-bold w-6 text-right">{i + 1}</span>
                 <img src={f.image} alt={f.name} className="w-8 h-8 rounded-full border-2 border-[#4a90e2] object-cover" />
                 <span className="flex-1">{f.name}</span>
-                <span className="font-mono text-[#4a90e2] font-bold">{f.points}</span>
               </li>
             ))}
           </ul>

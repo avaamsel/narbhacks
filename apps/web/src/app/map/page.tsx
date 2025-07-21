@@ -91,7 +91,7 @@ const WheelsIcon = (color: string) => {
   if (typeof window !== "undefined" && window.L) {
     return window.L.divIcon({
       className: "custom-div-icon",
-      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 16px;">🛴</div>`,
+      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 16px;">🚗</div>`,
       iconSize: [24, 24],
       iconAnchor: [12, 12]
     });
@@ -521,7 +521,7 @@ export default function Home() {
               <div className="mb-6 p-4 bg-[#e6f2ff] rounded-lg">
                 <div className="text-sm text-[#4a90e2] font-semibold">Travel Mode</div>
                 <div className="text-lg font-bold text-[#3a4a5d]">
-                  {travelMode === "walking" ? "🚶 Walking" : "🛴 Wheels"}
+                  {travelMode === "walking" ? "🚶 Walking" : "🚗 Wheels"}
                 </div>
               </div>
             )}
@@ -549,7 +549,7 @@ export default function Home() {
                   totalDistance = totalDistance * 1.3;
                   const avgSpeed = selectedRouteData.mode === 'walk' ? 3 : 8;
                   const estimatedTimeMinutes = Math.round((totalDistance / avgSpeed) * 60);
-                  const modeLabel = selectedRouteData.mode === 'walk' ? '🚶 Walk' : '🛴 Wheels';
+                  const modeLabel = selectedRouteData.mode === 'walk' ? '🚶 Walk' : '🚗 Wheels';
                   return (
                     <>
                       <div className="text-base font-semibold text-[#4a90e2] mb-1">Mode: {modeLabel}</div>
@@ -816,7 +816,7 @@ export default function Home() {
             <div>
               <h1 className="text-2xl font-bold text-[#4a90e2]">Choose Your Route</h1>
               <p className="text-[#3a4a5d] mt-1">
-                {travelMode === "walking" ? "🚶 Walking" : "🛴 Wheels"} - Select an adventure path
+                {travelMode === "walking" ? "🚶 Walking" : "🚗 Wheels"} - Select an adventure path
               </p>
             </div>
             <button
