@@ -1,30 +1,45 @@
 {
   "expo": {
-    "newArchEnabled": true,
-    "name": "Pathpal",
-    "slug": "pathpal",
+    "name": "narbhacks",
+    "slug": "narbhacks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/narb_light_ascii.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/narb_light_ascii.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D87E1"
+      "backgroundColor": "#e1e1e1"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show your current position.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your current position."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/narb_light_ascii.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/narb_light_ascii.png"
     },
-    "plugins": ["expo-font"]
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow narbhacks to use your location to show your current position.",
+          "locationAlwaysPermission": "Allow narbhacks to use your location to show your current position.",
+          "locationWhenInUsePermission": "Allow narbhacks to use your location to show your current position."
+        }
+      ]
+    ]
   }
 }

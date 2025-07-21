@@ -23,7 +23,7 @@ const LoginScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (isSignedIn) {
-      navigation.navigate("LocationTrackerScreen");
+      navigation.navigate("NotesDashboardScreen");
     }
   }, [isSignedIn, navigation.navigate]);
 
@@ -36,7 +36,7 @@ const LoginScreen = ({ navigation }) => {
 
         if (createdSessionId) {
           await setActive({ session: createdSessionId });
-          navigation.navigate("LocationTrackerScreen");
+          navigation.navigate("NotesDashboardScreen");
         } else {
           // Handle sign-up flow for new users
           if (signUp && signUp.status === "missing_requirements") {
@@ -52,12 +52,13 @@ const LoginScreen = ({ navigation }) => {
                   phoneNumber: "+1234567890", // Dummy number - you should handle this properly
                 });
 
-                const { createdSessionId: newSessionId } =
-                  await signUp.create();
+                const { createdSessionId: newSessionId } = await signUp.create(
+                  {}
+                );
 
                 if (newSessionId) {
                   await setActive({ session: newSessionId });
-                  navigation.navigate("LocationTrackerScreen");
+                  navigation.navigate("NotesDashboardScreen");
                 }
               } catch (_updateError) {
                 Alert.alert(
@@ -69,12 +70,13 @@ const LoginScreen = ({ navigation }) => {
             } else {
               // Phone is optional, just create the user
               try {
-                const { createdSessionId: newSessionId } =
-                  await signUp.create();
+                const { createdSessionId: newSessionId } = await signUp.create(
+                  {}
+                );
 
                 if (newSessionId) {
                   await setActive({ session: newSessionId });
-                  navigation.navigate("LocationTrackerScreen");
+                  navigation.navigate("NotesDashboardScreen");
                 }
               } catch (_signUpError) {
                 // Sign-up error handled silently
@@ -95,7 +97,7 @@ const LoginScreen = ({ navigation }) => {
 
         if (createdSessionId) {
           await setActive({ session: createdSessionId });
-          navigation.navigate("LocationTrackerScreen");
+          navigation.navigate("NotesDashboardScreen");
         }
       }
     } catch (err) {

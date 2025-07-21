@@ -20,8 +20,8 @@ type NavigationItem = {
 };
 
 const navigation: NavigationItem[] = [
-  { name: "Map", href: "/", current: true },
-  { name: "My Account", href: "#", current: false },
+  { name: "My Paths", href: "/", current: false },
+  { name: "My Stats", href: "/stats", current: false },
 ];
 
 interface HeaderProps {
@@ -50,35 +50,13 @@ export default function Header({ onStatsClick }: HeaderProps) {
                     <ul className="flex space-x-8">
                       {navigation.map((item) => (
                         <li key={item.name}>
-                          {item.name === "My Account" ? (
-                            user ? (
-                              <Link
-                                href="/stats"
-                                className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
-                              >
-                                {item.name}
-                              </Link>
-                            ) : (
-                              onStatsClick ? (
-                                <button
-                                  onClick={onStatsClick}
-                                  className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
-                                >
-                                  {item.name}
-                                </button>
-                              ) : (
-                                <span className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]">{item.name}</span>
-                              )
-                            )
-                          ) : (
-                            <Link
-                              href={item.href}
-                              className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]"
-                              aria-current={item.current ? "page" : undefined}
-                            >
-                              {item.name}
-                            </Link>
-                          )}
+                          <Link
+                            href={item.href}
+                            className="text-[#3a4a5d] text-center text-xl not-italic font-normal leading-[normal]"
+                            aria-current={item.current ? "page" : undefined}
+                          >
+                            {item.name}
+                          </Link>
                         </li>
                       ))}
                     </ul>
@@ -123,47 +101,15 @@ export default function Header({ onStatsClick }: HeaderProps) {
           <DisclosurePanel className="sm:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2 flex flex-col gap-3 items-start">
               {navigation.map((item) => (
-                item.name === "My Account" ? (
-                  user ? (
-                    <DisclosureButton
-                      key={item.name}
-                      as={Link}
-                      href="/stats"
-                      className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
-                    >
-                      {item.name}
-                    </DisclosureButton>
-                  ) : (
-                    onStatsClick ? (
-                      <DisclosureButton
-                        key={item.name}
-                        as="button"
-                        onClick={onStatsClick}
-                        className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal] hover:text-[#4a90e2] transition-colors"
-                      >
-                        {item.name}
-                      </DisclosureButton>
-                    ) : (
-                      <DisclosureButton
-                        key={item.name}
-                        as="span"
-                        className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
-                      >
-                        {item.name}
-                      </DisclosureButton>
-                    )
-                  )
-                ) : (
-                  <DisclosureButton
-                    key={item.name}
-                    as={Link}
-                    href={item.href}
-                    className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
-                    aria-current={item.current ? "page" : undefined}
-                  >
-                    {item.name}
-                  </DisclosureButton>
-                )
+                <DisclosureButton
+                  key={item.name}
+                  as={Link}
+                  href={item.href}
+                  className="text-[#2D2D2D] text-center text-xl not-italic font-normal leading-[normal]"
+                  aria-current={item.current ? "page" : undefined}
+                >
+                  {item.name}
+                </DisclosureButton>
               ))}
               <div className="flex gap-6 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 ml-8">
                 <SignInButton mode="modal">

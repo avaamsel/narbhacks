@@ -12,7 +12,6 @@ export default function StatsPage() {
   // Mock stats for demo
   const [totalMiles, setTotalMiles] = useState(123.4); // Replace with real data if available
   const [totalMinutes, setTotalMinutes] = useState(2100); // Replace with real data if available
-  const [totalPoints, setTotalPoints] = useState(420); // Mock points
 
   // Mock city visit data
   const cityVisits = [
@@ -33,9 +32,9 @@ export default function StatsPage() {
   // Mock leaderboard data
   const leaderboard = [
     { name: "You", points: totalPoints, image: user?.imageUrl || "/images/pin.svg" },
-    { name: "Ava", points: 390, image: "/images/profile.png" },
-    { name: "Sam", points: 350, image: "/images/profile.png" },
-    { name: "Jordan", points: 300, image: "/images/profile.png" },
+    { name: "Elise", image: "/images/profile.png" },
+    { name: "Gabe", image: "/images/profile.png" },
+    { name: "Ryder", image: "/images/profile.png" },
   ];
 
   useEffect(() => {
@@ -156,7 +155,7 @@ export default function StatsPage() {
   if (!isSignedIn) {
     return (
       <main className="min-h-screen bg-[#f5f7fa] flex flex-col items-center py-0 w-full pb-16">
-        <Header />
+        <div className="w-full mb-8"><Header /></div>
         {/* Blurred background content */}
         <div className="absolute inset-0 blur-sm opacity-30 pointer-events-none">
           {renderStatsContent()}
@@ -196,7 +195,7 @@ export default function StatsPage() {
 
   return (
     <main className="min-h-screen bg-[#f5f7fa] flex flex-col items-center py-0 w-full pb-16">
-      <Header />
+      <div className="w-full mb-8"><Header /></div>
       {renderStatsContent()}
     </main>
   );
