@@ -30,14 +30,12 @@ export default function StatsPage() {
   ];
 
   // Mock leaderboard data
-  const leaderboardRaw = [
-    { name: user?.fullName || user?.username || "You", image: user?.imageUrl || "/images/pin.svg" },
+  const currentUserName = user?.fullName || user?.username || "You";
+  const [leaderboard, setLeaderboard] = useState([
     { name: "Elise", image: "/images/profile.png" },
     { name: "Gabe", image: "/images/profile.png" },
     { name: "Ryder", image: "/images/profile.png" },
-  ];
-  const currentUserName = user?.fullName || user?.username || "You";
-  const leaderboard = leaderboardRaw.filter(f => f.name !== currentUserName);
+  ]);
 
   useEffect(() => {
     // Try to get user's current city from geolocation
@@ -128,9 +126,64 @@ export default function StatsPage() {
               <li key={f.name} className="flex items-center gap-3 mb-2">
                 <img src={f.image} alt={f.name} className="w-8 h-8 rounded-full border-2 border-[#4a90e2] object-cover" />
                 <span className="flex-1">{f.name}</span>
+                <button
+                  className="ml-2 text-gray-400 hover:text-red-500 text-xl font-bold px-2"
+                  aria-label={`Delete ${f.name}`}
+                  onClick={() => setLeaderboard(prev => prev.filter(friend => friend.name !== f.name))}
+                >
+                  ×
+                </button>
               </li>
             ))}
           </ul>
+          {(() => {
+            const [adding, setAdding] = useState(false);
+            const [friendName, setFriendName] = useState("");
+            if (!adding) {
+              return (
+                <button
+                  className="mt-3 px-4 py-2 bg-[#4a90e2] text-white rounded-lg font-semibold hover:bg-[#357ab8] transition"
+                  onClick={() => setAdding(true)}
+                >
+                  + Add Friend
+                </button>
+              );
+            }
+            return (
+              <div className="mt-3 flex gap-2 items-center">
+                <input
+                  type="text"
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#4a90e2]"
+                  placeholder="Friend's name"
+                  value={friendName}
+                  onChange={e => setFriendName(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  className="px-4 py-2 bg-[#4a90e2] text-white rounded-lg font-semibold hover:bg-[#357ab8] transition"
+                  onClick={() => {
+                    if (friendName.trim()) {
+                      setLeaderboard(prev => [
+                        ...prev,
+                        { name: friendName.trim(), image: "/images/profile.png" }
+                      ]);
+                      setFriendName("");
+                      setAdding(false);
+                    }
+                  }}
+                >
+                  Confirm
+                </button>
+                <button
+                  className="px-2 py-2 text-gray-500 hover:text-red-500"
+                  onClick={() => { setAdding(false); setFriendName(""); }}
+                  aria-label="Cancel"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })()}
         </div>
         {/* Cities Explored */}
         <div className="w-full bg-[#f5f7fa] rounded p-4">

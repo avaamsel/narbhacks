@@ -21,7 +21,6 @@ type NavigationItem = {
 
 const navigation: NavigationItem[] = [
   { name: "Paths", href: "/", current: false },
-  { name: "Create", href: "/create", current: false},
   { name: "Account", href: "/stats", current: false },
 ];
 

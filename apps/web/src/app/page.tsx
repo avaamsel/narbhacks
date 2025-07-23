@@ -11,6 +11,7 @@ import LeafletIconFix from "@/components/LeafletIconFix";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useRef } from "react";
 
 const MapContainer: React.ComponentType<MapContainerProps> = dynamic<MapContainerProps>(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -126,10 +127,11 @@ const sumDistances = (routeBusinesses: Business[], idx: number, acc: number): nu
 };
 
 const calculateRouteInfo = (route: Route): { distance: number; timeMinutes: number } => {
-  const routeBusinesses = route.businesses.map((i: number) => walkingBusinesses[i]);
+  const businessSet = route.mode === 'walk' ? walkingBusinesses : wheelsBusinesses;
+  const routeBusinesses = route.businesses.map((i: number) => businessSet[i]).filter(Boolean);
   let totalDistance = sumDistances(routeBusinesses, 0, 0);
   totalDistance = totalDistance * 1.3;
-  const avgSpeed = 3; // walking mph
+  const avgSpeed = route.mode === 'walk' ? 3 : 8;
   const estimatedTimeMinutes = Math.round((totalDistance / avgSpeed) * 60);
   return {
     distance: totalDistance,
@@ -141,6 +143,7 @@ const MyPaths: React.FC = (): JSX.Element => {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [hiddenPaths, setHiddenPaths] = useState<string[]>([]);
+  const [finishedPaths, setFinishedPaths] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<{ routeKey: string | null; type: 'buddies' | 'locations' | null }>({ routeKey: null, type: null });
   const [userRoutes, setUserRoutes] = useState<Record<string, Route>>({});
   // On mount, load user routes from localStorage
@@ -204,9 +207,20 @@ const MyPaths: React.FC = (): JSX.Element => {
         </h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
           {routeEntries.filter(([routeKey]) => !hiddenPaths.includes(routeKey)).map(([routeKey, route]): JSX.Element => {
+            if (finishedPaths.includes(routeKey)) {
+              return (
+                <div key={routeKey} className="relative h-32 border border-[#dbe4ea] rounded-lg bg-white">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-white/90 px-6 py-3 rounded-lg shadow text-lg font-semibold text-green-700 animate-fadeOutFast">
+                      Thanks for exploring!
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             const info = calculateRouteInfo(route);
             const businessSet = route.mode === 'walk' ? walkingBusinesses : wheelsBusinesses;
-            const routeBusinesses = route.businesses.map((i: number) => businessSet[i]);
+            const routeBusinesses = route.businesses.map((i: number) => businessSet[i]).filter(Boolean);
             let bounds: [[number, number], [number, number]] = [[34.0522, -118.2437], [34.0522, -118.2437]];
             if (routeBusinesses.length > 0) {
               bounds = [
@@ -343,13 +357,36 @@ const MyPaths: React.FC = (): JSX.Element => {
                     </div>
                   )}
                 </div>
-                <div className="mt-auto flex w-full justify-center">
+                <div className="mt-auto flex w-full flex-col gap-2 justify-center items-center">
                   <Link
                     href={`/map?path=${routeKey}`}
-                    className="px-4 py-2 bg-[#4a90e2] text-white rounded-lg font-semibold hover:bg-[#357ab8] transition text-center"
+                    className="px-4 py-2 bg-[#4a90e2] text-white rounded-lg font-semibold hover:bg-[#357ab8] transition text-center w-full mb-2"
                   >
                     View Path
                   </Link>
+                  <button
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition w-full"
+                    onClick={() => {
+                      setFinishedPaths(prev => [...prev, routeKey]);
+                      setTimeout(() => {
+                        if (routeKey.startsWith('user_')) {
+                          // Remove from localStorage and state
+                          let userRoutes = {};
+                          try {
+                            userRoutes = JSON.parse(localStorage.getItem('userRoutes') || '{}');
+                          } catch {}
+                          delete userRoutes[routeKey];
+                          localStorage.setItem('userRoutes', JSON.stringify(userRoutes));
+                          setUserRoutes(userRoutes);
+                        } else {
+                          setHiddenPaths(prev => [...prev, routeKey]);
+                        }
+                        setFinishedPaths(prev => prev.filter(key => key !== routeKey));
+                      }, 2000);
+                    }}
+                  >
+                    Finish Path
+                  </button>
                 </div>
               </div>
             );

@@ -216,6 +216,8 @@ export default function CreatePathPage() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Reset form state when a new path is selected
   useEffect(() => {
@@ -306,17 +308,19 @@ export default function CreatePathPage() {
                 >
                   <div className="w-full h-40 min-h-[160px] rounded-md mb-4 overflow-hidden relative">
                     <div className="absolute inset-0">
-                      <MapContainer
-                        key={route.key}
-                        bounds={bounds as [[number, number], [number, number]]}
-                        style={{ height: "100%", width: "100%" }}
-                      >
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                        <Polyline
-                          positions={routeBusinesses.map(biz => [biz.lat, biz.lng])}
-                          pathOptions={{ color: "#4a90e2", weight: 4, opacity: 0.8 }}
-                        />
-                      </MapContainer>
+                      {mounted && (
+                        <MapContainer
+                          key={route.key + '-' + Math.random().toString(36).substr(2, 9)}
+                          bounds={bounds as [[number, number], [number, number]]}
+                          style={{ height: "100%", width: "100%" }}
+                        >
+                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                          <Polyline
+                            positions={routeBusinesses.map(biz => [biz.lat, biz.lng])}
+                            pathOptions={{ color: "#4a90e2", weight: 4, opacity: 0.8 }}
+                          />
+                        </MapContainer>
+                      )}
                     </div>
                   </div>
                   <h3 className="text-lg font-bold text-[#3a4a5d] mb-2 flex items-center gap-2">
@@ -402,9 +406,9 @@ export default function CreatePathPage() {
             <div className="flex-1 min-w-[300px] max-w-[400px]">
               <div className="w-full h-64 rounded-md overflow-hidden relative">
                 <div className="absolute inset-0">
-                  {routeBusinesses.length > 0 && (
+                  {mounted && routeBusinesses.length > 0 && (
                     <MapContainer
-                      key={route.key}
+                      key={route.key + '-' + Math.random().toString(36).substr(2, 9)}
                       bounds={bounds as [[number, number], [number, number]]}
                       style={{ height: "100%", width: "100%" }}
                     >
@@ -530,8 +534,7 @@ export default function CreatePathPage() {
                 } catch {}
                 userRoutes[key] = newRoute;
                 localStorage.setItem('userRoutes', JSON.stringify(userRoutes));
-                // Redirect to /app?created=1 using Next.js router
-                router.push('/app?created=1');
+                router.push('/');
               }}
             >
               Create Path
